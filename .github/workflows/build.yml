@@ -1,7 +1,7 @@
 name: Mobile-Auto-Signed-Build
 
 on:
-  workflow_dispatch: # This lets you click a button to start the build
+  workflow_dispatch:
 
 jobs:
   build:
@@ -24,14 +24,19 @@ jobs:
       - name: Build Release APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleFossRelease
 
       - name: Sign the APK
         run: |
-          # Find the apksigner tool in the Android SDK
+          # 1. Find where the APK actually is
+          ORIGINAL_APK=$(find app/build/outputs/apk -name "*release-unsigned.apk" | head -n 1)
+          echo "Found APK at: $ORIGINAL_APK"
+          
+          # 2. Find the signer tool
           APK_SIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | tail -1)
-          # Sign the generated APK
-          $APK_SIGNER sign --ks release.keystore --ks-pass pass:password123 --key-pass pass:password123 --out FossifyKeyboard-Signed.apk app/build/outputs/apk/release/*.apk
+          
+          # 3. Sign it
+          $APK_SIGNER sign --ks release.keystore --ks-pass pass:password123 --key-pass pass:password123 --out FossifyKeyboard-Signed.apk "$ORIGINAL_APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
