@@ -1,19 +1,13 @@
-name: Build Signed Release APK
+name: Mobile-Auto-Signed-Build
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch: # This lets you click a button to start the build
 
 jobs:
   build:
-    name: Build Signed Release APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -23,23 +17,24 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Create Temporary Signing Key
+        run: |
+          keytool -genkey -v -keystore release.keystore -alias fossify -keyalg RSA -keysize 2048 -validity 10000 -storepass password123 -keypass password123 -dname "CN=FossifyUser, OU=Dev, O=Fossify, L=World, S=World, C=US"
 
-      - name: Decode keystore from secret
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release.keystore
+      - name: Build Release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
 
-      - name: Build signed release APK
-        run: ./gradlew assembleRelease --no-daemon
-        env:
-          SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
-          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      - name: Sign the APK
+        run: |
+          # Find the apksigner tool in the Android SDK
+          APK_SIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | tail -1)
+          # Sign the generated APK
+          $APK_SIGNER sign --ks release.keystore --ks-pass pass:password123 --key-pass pass:password123 --out FossifyKeyboard-Signed.apk app/build/outputs/apk/release/*.apk
 
-      - name: Upload signed APK to GitHub Artifacts
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: fossify-keyboard-release-${{ github.sha }}
-          path: app/build/outputs/apk/release/*.apk
-          retention-days: 30
+          name: My-Signed-Keyboard
+          path: FossifyKeyboard-Signed.apk
