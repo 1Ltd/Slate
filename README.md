@@ -1,4 +1,4 @@
-# Fossify Keyboard
+# Slate Keyboard
 
 <img alt="Logo" src="graphics/icon.webp" width="120" />
 
